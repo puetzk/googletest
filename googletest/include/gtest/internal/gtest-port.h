@@ -132,6 +132,9 @@
 //   GTEST_OS_WINDOWS  - Windows (Desktop, MinGW, or Mobile)
 //     GTEST_OS_WINDOWS_DESKTOP  - Windows Desktop
 //     GTEST_OS_WINDOWS_MINGW    - MinGW
+//     GTEST_OS_WINDOWS_WINE     - Winelib (wineg++)
+//       GTEST_OS_WINDOWS_WINE_POSIX  - with posix libc
+//       GTEST_OS_WINDOWS_WINE_MSVCRT - with MSVCRT
 //     GTEST_OS_WINDOWS_MOBILE   - Windows Mobile
 //     GTEST_OS_WINDOWS_PHONE    - Windows Phone
 //     GTEST_OS_WINDOWS_RT       - Windows Store App/WinRT
@@ -325,14 +328,7 @@
     GTEST_DISABLE_MSC_WARNINGS_POP_()
 #endif
 
-// Brings in definitions for functions used in the testing::internal::posix
-// namespace (read, write, close, chdir, isatty, stat). We do not currently
-// use them on Windows Mobile.
 #if GTEST_OS_WINDOWS
-# if !GTEST_OS_WINDOWS_MOBILE
-#  include <direct.h>
-#  include <io.h>
-# endif
 // In order to avoid having to include <windows.h>, use forward declaration
 #if GTEST_OS_WINDOWS_MINGW && !defined(__MINGW64_VERSION_MAJOR)
 // MinGW defined _CRITICAL_SECTION and _RTL_CRITICAL_SECTION as two
@@ -344,10 +340,20 @@ typedef struct _CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // WindowsTypesTest.CRITICAL_SECTIONIs_RTL_CRITICAL_SECTION.
 typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #endif
+#endif
+
+// Brings in definitions for functions used in the testing::internal::posix
+// namespace (read, write, close, chdir, isatty, stat).
+#if GTEST_OS_WINDOWS_MOBILE
+// We do not currently use these functions on Windows Mobile
+#elif GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_WINE_POSIX
+// Microsoft C runtime defines these in different headers,
+# include <direct.h>
+# include <io.h>
 #else
-// This assumes that non-Windows OSes provide unistd.h. For OSes where this
-// is not the case, we need to include headers that provide the functions
-// mentioned above.
+// Assume that non-Windows OSes (or wine without msvcrt) provide unistd.h.
+// For OSes where this is not the case, we need to include headers that
+// provide the functions mentioned above.
 # include <unistd.h>
 # include <strings.h>
 #endif  // GTEST_OS_WINDOWS
@@ -364,7 +370,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // On Android, <regex.h> is only available starting with Gingerbread.
 #  define GTEST_HAS_POSIX_RE (__ANDROID_API__ >= 9)
 # else
-#  define GTEST_HAS_POSIX_RE (!GTEST_OS_WINDOWS)
+#  define GTEST_HAS_POSIX_RE (!GTEST_OS_WINDOWS || GTEST_OS_WINDOWS_WINE_POSIX)
 # endif
 #endif
 
@@ -594,6 +600,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #if (GTEST_OS_LINUX || GTEST_OS_CYGWIN || GTEST_OS_SOLARIS ||             \
      (GTEST_OS_MAC && !GTEST_OS_IOS) ||                                   \
      (GTEST_OS_WINDOWS_DESKTOP && _MSC_VER) || GTEST_OS_WINDOWS_MINGW ||  \
+      GTEST_OS_WINDOWS_WINE_POSIX || GTEST_OS_WINDOWS_WINE_MSVCRT ||      \
      GTEST_OS_AIX || GTEST_OS_HPUX || GTEST_OS_OPENBSD || GTEST_OS_QNX || \
      GTEST_OS_FREEBSD || GTEST_OS_NETBSD || GTEST_OS_FUCHSIA ||           \
      GTEST_OS_DRAGONFLY || GTEST_OS_GNU_KFREEBSD || GTEST_OS_HAIKU)
@@ -612,7 +619,8 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 
 // Determines whether the system compiler uses UTF-16 for encoding wide strings.
 #define GTEST_WIDE_STRING_USES_UTF16_ \
-  (GTEST_OS_WINDOWS || GTEST_OS_CYGWIN || GTEST_OS_AIX || GTEST_OS_OS2)
+  ((GTEST_OS_WINDOWS && (!GTEST_OS_WINDOWS_WINE || defined(WINE_UNICODE_NATIVE)) || \
+   GTEST_OS_CYGWIN || GTEST_OS_AIX || GTEST_OS_OS2)
 
 // Determines whether test results can be streamed to a socket.
 #if GTEST_OS_LINUX || GTEST_OS_GNU_KFREEBSD || GTEST_OS_DRAGONFLY || \
@@ -1263,7 +1271,14 @@ class GTEST_API_ Notification {
 // On MinGW, we can have both GTEST_OS_WINDOWS and GTEST_HAS_PTHREAD
 // defined, but we don't want to use MinGW's pthreads implementation, which
 // has conformance problems with some versions of the POSIX standard.
-# if GTEST_HAS_PTHREAD && !GTEST_OS_WINDOWS_MINGW
+
+// On wine, pthreads may be present, but threads launched by pthread_create
+// will not set up a Win32 TEB, and therefore may not (safely) re-enter
+// winelib, meaning they cannot call any Win32 functions. However, wine's
+// implementation is built atop pthread_create, so synchronization
+// is fine, as are posix-only worker threads that will never call win32 API
+// themselves or re-enter user code that might do so.
+# if GTEST_HAS_PTHREAD && !(GTEST_OS_WINDOWS_MINGW || GTEST_OS_WINDOWS_WINE)
 
 // As a C-function, ThreadFuncWithCLinkage cannot be templated itself.
 // Consequently, it cannot select a correct instantiation of ThreadWithParam
@@ -1399,7 +1414,8 @@ class GTEST_API_ Mutex {
   // For static mutexes, we rely on these members being initialized to zeros
   // by the linker.
   MutexType type_;
-  long critical_section_init_phase_;  // NOLINT
+  //FIXME this needs to be Win32 LONG, which is *not* the same as gcc's long int on wine
+  int critical_section_init_phase_;  // NOLINT
   GTEST_CRITICAL_SECTION* critical_section_;
 
   GTEST_DISALLOW_COPY_AND_ASSIGN_(Mutex);
@@ -1960,7 +1976,7 @@ namespace posix {
 
 // Functions with a different name on Windows.
 
-#if GTEST_OS_WINDOWS
+#if GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_WINE_POSIX
 
 typedef struct _stat StatStruct;
 
@@ -2009,7 +2025,7 @@ inline char* StrDup(const char* src) { return strdup(src); }
 inline int RmDir(const char* dir) { return rmdir(dir); }
 inline bool IsDir(const StatStruct& st) { return S_ISDIR(st.st_mode); }
 
-#endif  // GTEST_OS_WINDOWS
+#endif  // GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_WINE_POSIX
 
 // Functions deprecated by MSVC 8.0.
 

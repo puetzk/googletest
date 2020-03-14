@@ -39,7 +39,9 @@
 
 #if GTEST_OS_WINDOWS
 # include <windows.h>
-# include <io.h>
+# if !GTEST_OS_WINDOWS_WINE_POSIX
+#  include <io.h>
+# endif
 # include <sys/stat.h>
 # include <map>  // Used in ThreadLocal.
 # ifdef _MSC_VER
@@ -1084,7 +1086,11 @@ class CapturedStream {
                                             temp_file_path);
     GTEST_CHECK_(success != 0)
         << "Unable to create a temporary file in " << temp_dir_path;
+#if GTEST_OS_WINDOWS_WINE_POSIX
+	const int captured_fd = creat(temp_file_path, S_IREAD | S_IWRITE);
+#else
     const int captured_fd = creat(temp_file_path, _S_IREAD | _S_IWRITE);
+#endif
     GTEST_CHECK_(captured_fd != -1) << "Unable to open temporary file "
                                     << temp_file_path;
     filename_ = temp_file_path;

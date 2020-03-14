@@ -83,9 +83,14 @@
 # include <windows.h>  // NOLINT
 # undef min
 
+#if GTEST_OS_WINDOWS_WINE_POSIX
+# define GTEST_HAS_GETTIMEOFDAY_ 1
+# include <sys/time.h>  // NOLINT
+#else
 # include <crtdbg.h>  // NOLINT
 # include <debugapi.h>  // NOLINT
 # include <io.h>  // NOLINT
+#endif
 # include <sys/timeb.h>  // NOLINT
 # include <sys/types.h>  // NOLINT
 # include <sys/stat.h>  // NOLINT
@@ -1934,7 +1939,7 @@ bool String::CaseInsensitiveWideCStringEquals(const wchar_t* lhs,
 
   if (rhs == nullptr) return false;
 
-#if GTEST_OS_WINDOWS
+#if GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_WINE_POSIX
   return _wcsicmp(lhs, rhs) == 0;
 #elif GTEST_OS_LINUX && !GTEST_OS_LINUX_ANDROID
   return wcscasecmp(lhs, rhs) == 0;
@@ -4910,6 +4915,7 @@ int UnitTest::Run() {
           _WRITE_ABORT_MSG | _CALL_REPORTFAULT);  // pop-up window, core dump.
 # endif
 
+# if !GTEST_OS_WINDOWS_WINE_POSIX
     // In debug mode, the Windows CRT can crash with an assertion over invalid
     // input (e.g. passing an invalid file descriptor).  The default handling
     // for these assertions is to pop up a dialog and wait for user input.
@@ -4919,6 +4925,7 @@ int UnitTest::Run() {
                               _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
       (void)_CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
     }
+# endif
   }
 #endif  // GTEST_OS_WINDOWS
 

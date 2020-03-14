@@ -35,7 +35,7 @@
 
 #if GTEST_OS_WINDOWS_MOBILE
 # include <windows.h>
-#elif GTEST_OS_WINDOWS
+#elif GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_WINE_POSIX
 # include <direct.h>
 # include <io.h>
 #else
@@ -45,7 +45,7 @@
 
 #include "gtest/internal/gtest-string.h"
 
-#if GTEST_OS_WINDOWS
+#if GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_WINE_POSIX
 # define GTEST_PATH_MAX_ _MAX_PATH
 #elif defined(PATH_MAX)
 # define GTEST_PATH_MAX_ PATH_MAX
@@ -97,7 +97,7 @@ FilePath FilePath::GetCurrentDir() {
   // These platforms do not have a current directory, so we just return
   // something reasonable.
   return FilePath(kCurrentDirectoryString);
-#elif GTEST_OS_WINDOWS
+#elif GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_WINE_POSIX
   char cwd[GTEST_PATH_MAX_ + 1] = { '\0' };
   return FilePath(_getcwd(cwd, sizeof(cwd)) == nullptr ? "" : cwd);
 #else
@@ -321,7 +321,7 @@ bool FilePath::CreateFolder() const {
   LPCWSTR unicode = String::AnsiToUtf16(removed_sep.c_str());
   int result = CreateDirectory(unicode, nullptr) ? 0 : -1;
   delete [] unicode;
-#elif GTEST_OS_WINDOWS
+#elif GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_WINE_POSIX
   int result = _mkdir(pathname_.c_str());
 #else
   int result = mkdir(pathname_.c_str(), 0777);

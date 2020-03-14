@@ -45,6 +45,13 @@
 # define GTEST_OS_WINDOWS 1
 # ifdef _WIN32_WCE
 #  define GTEST_OS_WINDOWS_MOBILE 1
+# elif defined(__WINE__)
+#  define GTEST_OS_WINDOWS_WINE 1
+#  ifdef __MSVCRT__
+#   define GTEST_OS_WINDOWS_WINE_MSVCRT 1
+#  else
+#   define GTEST_OS_WINDOWS_WINE_POSIX 1
+#  endif
 # elif defined(WINAPI_FAMILY)
 #  include <winapifamily.h>
 #  if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)

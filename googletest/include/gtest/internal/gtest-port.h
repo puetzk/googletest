@@ -1143,6 +1143,37 @@ void ClearInjectableArgvs();
 
 #endif  // GTEST_HAS_DEATH_TEST
 
+#if GTEST_OS_WINDOWS
+// Provides leak-safe Windows kernel handle ownership.
+// Used in death tests and in threading support.
+class GTEST_API_ AutoHandle {
+ public:
+  // Assume that Win32 HANDLE type is equivalent to void*. Doing so allows us to
+  // avoid including <windows.h> in this header file. Including <windows.h> is
+  // undesirable because it defines a lot of symbols and macros that tend to
+  // conflict with client code. This assumption is verified by
+  // WindowsTypesTest.HANDLEIsVoidStar.
+  typedef void* Handle;
+  AutoHandle();
+  explicit AutoHandle(Handle handle);
+
+  ~AutoHandle();
+
+  Handle Get() const;
+  void Reset();
+  void Reset(Handle handle);
+
+ private:
+  // Returns true if and only if the handle is a valid handle object that can be
+  // closed.
+  bool IsCloseable() const;
+
+  Handle handle_;
+
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(AutoHandle);
+};
+#endif
+
 // Defines synchronization primitives.
 #if GTEST_IS_THREADSAFE
 # if GTEST_HAS_PTHREAD
@@ -1209,35 +1240,6 @@ class Notification {
 # elif GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_PHONE && !GTEST_OS_WINDOWS_RT
 
 GTEST_API_ void SleepMilliseconds(int n);
-
-// Provides leak-safe Windows kernel handle ownership.
-// Used in death tests and in threading support.
-class GTEST_API_ AutoHandle {
- public:
-  // Assume that Win32 HANDLE type is equivalent to void*. Doing so allows us to
-  // avoid including <windows.h> in this header file. Including <windows.h> is
-  // undesirable because it defines a lot of symbols and macros that tend to
-  // conflict with client code. This assumption is verified by
-  // WindowsTypesTest.HANDLEIsVoidStar.
-  typedef void* Handle;
-  AutoHandle();
-  explicit AutoHandle(Handle handle);
-
-  ~AutoHandle();
-
-  Handle Get() const;
-  void Reset();
-  void Reset(Handle handle);
-
- private:
-  // Returns true if and only if the handle is a valid handle object that can be
-  // closed.
-  bool IsCloseable() const;
-
-  Handle handle_;
-
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(AutoHandle);
-};
 
 // Allows a controller thread to pause execution of newly created
 // threads until notified.  Instances of this class must be created

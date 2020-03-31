@@ -1906,7 +1906,7 @@ using bool_constant = std::integral_constant<bool, B>;
 typedef __int64 BiggestInt;
 #else
 # define GTEST_PATH_SEP_ "/"
-# define GTEST_HAS_ALT_PATH_SEP_ 0
+# define GTEST_HAS_ALT_PATH_SEP_ GTEST_OS_WINDOWS_WINELIB
 typedef long long BiggestInt;  // NOLINT
 #endif  // GTEST_OS_WINDOWS
 

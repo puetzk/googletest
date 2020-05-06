@@ -137,6 +137,21 @@ if (DEFINED CMAKE_VERSION AND NOT "${CMAKE_VERSION}" VERSION_LESS "2.8.11")
   target_include_directories(gtest_main SYSTEM INTERFACE
     "$<BUILD_INTERFACE:${gtest_build_include_dirs}>"
     "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>")
+
+  if(WIN32_WINE)
+    # wine.exe.so files actually use __wine_spec_exe_entry as the entry point,
+    # rather than main. Therefore the linker is not initially looking for main(),
+    # and will pass over any objects in lib.a archives that might provide it.
+    # when winecrt0 is reached, it finds the definition of __wine_spec_exe_entry,
+    # and learns that this wants main, but this rescan will prefer the definition
+    # of main within winecrt0 (in termans of WinMain) to rescanning early libraries.
+    # Therefore only a direct .o file (which is never passed over) can override this,
+    # and libraries like gtest_main do not work as intended
+    #
+    # Adding -Wl,--undefined= seeds the "undefined symbol" list with these symbols,
+    # so that the linker is aware it should select the first definition it encounters
+    target_link_options(gtest_main INTERFACE -Wl,--undefined=main)
+  endif()
 endif()
 target_link_libraries(gtest_main PUBLIC gtest)
 
@@ -240,6 +255,9 @@ $env:Path = \"$project_bin;$env:Path\"
   endif()
   cxx_library(gtest_main_no_rtti "${cxx_no_rtti}"
     src/gtest-all.cc src/gtest_main.cc)
+  if(WIN32_WINE)
+    target_link_options(gtest_main_no_rtti INTERFACE -Wl,--undefined=main)
+  endif()
 
   cxx_test_with_flags(gtest-death-test_ex_nocatch_test
     "${cxx_exception} -DGTEST_ENABLE_CATCH_EXCEPTIONS_=0"

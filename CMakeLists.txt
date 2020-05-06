@@ -20,6 +20,10 @@ else()
   endif()
 endif()
 
+if(WIN32_WINE)
+	add_compile_options(-fno-short-wchar)
+endif()
+
 enable_testing()
 
 include(CMakeDependentOption)

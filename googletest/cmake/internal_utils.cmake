@@ -273,6 +273,9 @@ endfunction()
 # test/name.py.  It does nothing if Python is not installed.
 function(py_test name)
   if (PYTHONINTERP_FOUND)
+    if (CMAKE_EXECUTABLE_SUFFIX)
+      set(EXECUTABLE_SUFFIX_ARG --executable_suffix=${CMAKE_EXECUTABLE_SUFFIX})
+    endif()
     if ("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" VERSION_GREATER 3.1)
       if (CMAKE_CONFIGURATION_TYPES)
         # Multi-configuration build generators as for Visual Studio save
@@ -282,11 +285,11 @@ function(py_test name)
           add_test(NAME ${name}
             COMMAND powershell -Command ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/RunTest.ps1
               ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}.py
-              --build_dir=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> ${ARGN})
+              --build_dir=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> ${EXECUTABLE_SUFFIX_ARG} ${ARGN})
         else()
           add_test(NAME ${name}
             COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}.py
-              --build_dir=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> ${ARGN})
+              --build_dir=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> ${EXECUTABLE_SUFFIX_ARG} ${ARGN})
         endif()
       else (CMAKE_CONFIGURATION_TYPES)
         # Single-configuration build generators like Makefile generators
@@ -295,11 +298,11 @@ function(py_test name)
           add_test(NAME ${name}
             COMMAND powershell -Command ${CMAKE_CURRENT_BINARY_DIR}/RunTest.ps1
               ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}.py
-              --build_dir=${CMAKE_CURRENT_BINARY_DIR} ${ARGN})
+              --build_dir=${CMAKE_CURRENT_BINARY_DIR} ${EXECUTABLE_SUFFIX_ARG} ${ARGN})
         else()
           add_test(NAME ${name}
             COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}.py
-              --build_dir=${CMAKE_CURRENT_BINARY_DIR} ${ARGN})
+              --build_dir=${CMAKE_CURRENT_BINARY_DIR} ${EXECUTABLE_SUFFIX_ARG} ${ARGN})
         endif()
       endif (CMAKE_CONFIGURATION_TYPES)
     else()
@@ -311,11 +314,11 @@ function(py_test name)
         add_test(NAME ${name}
           COMMAND powershell -Command ${CMAKE_CURRENT_BINARY_DIR}/RunTest.ps1
             ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}.py
-            --build_dir=${CMAKE_CURRENT_BINARY_DIR}/\${CTEST_CONFIGURATION_TYPE} ${ARGN})
+            --build_dir=${CMAKE_CURRENT_BINARY_DIR}/\${CTEST_CONFIGURATION_TYPE} ${EXECUTABLE_SUFFIX_ARG} ${ARGN})
       else()
         add_test(NAME ${name}
           COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}.py
-            --build_dir=${CMAKE_CURRENT_BINARY_DIR}/\${CTEST_CONFIGURATION_TYPE} ${ARGN})
+            --build_dir=${CMAKE_CURRENT_BINARY_DIR}/\${CTEST_CONFIGURATION_TYPE} ${EXECUTABLE_SUFFIX_ARG} ${ARGN})
       endif()
     endif()
   endif(PYTHONINTERP_FOUND)

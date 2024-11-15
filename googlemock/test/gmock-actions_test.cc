@@ -688,6 +688,10 @@ TEST(ReturnTest, SupportsReferenceLikeReturnType) {
     Result(const std::vector<int>& vec) : v(&vec) {}  // NOLINT
   };
 
+#if defined(__GNUC__) && (__GNUC__ < 5 || (__GNUC__== 5 && __GNUC_MINOR__ < 3))
+  // error: 'T testing::DefaultValue<T>::ValueProducer::Produce() [with T = testing::{anonymous}::ReturnTest_PrefersConversionOperator_Test::TestBody()::Out]', declared using local type 'testing::{anonymous}::ReturnTest_PrefersConversionOperator_Test::TestBody()::Out', is used but never defined [-fpermissive]
+  GTEST_SKIP() << "Skipping to to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51048";
+#else
   // Set up an action for a mock function that returns the reference wrapper
   // type, initializing it with an actual vector.
   //
@@ -706,6 +710,7 @@ TEST(ReturnTest, SupportsReferenceLikeReturnType) {
 
   EXPECT_THAT(mock.AsStdFunction()(),
               Field(&Result::v, Pointee(ElementsAre(29, 31, 37))));
+#endif
 }
 
 TEST(ReturnTest, PrefersConversionOperator) {
@@ -726,6 +731,10 @@ TEST(ReturnTest, PrefersConversionOperator) {
     operator Out() const { return Out{19}; }  // NOLINT
   };
 
+#if defined(__GNUC__) && (__GNUC__ < 5 || (__GNUC__== 5 && __GNUC_MINOR__ < 3))
+  // error: 'T testing::DefaultValue<T>::ValueProducer::Produce() [with T = testing::{anonymous}::ReturnTest_PrefersConversionOperator_Test::TestBody()::Out]', declared using local type 'testing::{anonymous}::ReturnTest_PrefersConversionOperator_Test::TestBody()::Out', is used but never defined [-fpermissive]
+  GTEST_SKIP() << "Skipping to to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51048";
+#else
   // Assumption check: the C++ language rules are such that a function that
   // returns Out which uses In a return statement will use the implicit
   // conversion path rather than the explicit constructor.
@@ -737,6 +746,7 @@ TEST(ReturnTest, PrefersConversionOperator) {
   MockFunction<Out()> mock;
   EXPECT_CALL(mock, Call).WillOnce(Return(In()));
   EXPECT_THAT(mock.AsStdFunction()(), Field(&Out::x, 19));
+#endif
 }
 
 // It should be possible to use Return(R) with a mock function result type U
